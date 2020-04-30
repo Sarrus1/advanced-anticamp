@@ -1,2 +1,2 @@
-# advanced-anticamp
-A advanced anti-camp plugin for CS:GO
+# Advanced-Anticamp
+An advanced anti-camp plugin for CS:GO
