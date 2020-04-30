@@ -2,6 +2,7 @@
 {
     "Camp_Message"
     {
-        "en"        "[Anti-Camp]A player is camping!"
+        "#format" "{1:N}"
+        "en"        "[{green}Anti-Camp{default}] {1} is camping!"
     }
 }

@@ -1,6 +1,7 @@
 #pragma semicolon 1
 #include <sourcemod>
 #include <sdktools>
+#include <colorvariables>
 
 
 #define VERSION "0.1.0"
@@ -1423,8 +1424,9 @@ public Action Timer_End(Handle timer, any client)
 {
 	if(IsPlayerAlive(client))
 	{
+		CPrintToChatAll("%t", "Camp_Message", client);
 		//ForcePlayerSuicide(client);
-		PrintToChatAll("%t",  "Camp_Message");
+		//S_PrintToChatAll("%t",  "Camp_Message", client);
 	}
 	g_hClientTimers[client] = INVALID_HANDLE;
 }
