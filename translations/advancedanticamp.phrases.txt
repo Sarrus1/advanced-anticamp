@@ -1,0 +1,7 @@
+"Phrases"
+{
+    "Camp_Message"
+    {
+        "en"        "[Anti-Camp]A player is camping!"
+    }
+}
