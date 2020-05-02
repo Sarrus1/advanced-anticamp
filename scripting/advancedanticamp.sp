@@ -4,7 +4,7 @@
 #include <colorvariables>
 
 
-#define VERSION "0.1.0"
+#define PLUGIN_VERSION "0.1.0"
 #pragma newdecls required
 
 #define MAX_ZONES 256
@@ -36,7 +36,6 @@ enum struct g_eList {
 	bool liThis;
 }
 
-//int g_iZones[2048][MAX_ZONES][g_eList]; // max zones = 256
 g_eList g_iZones[2048][MAX_ZONES];
 
 
@@ -53,10 +52,14 @@ bool mode_plugin;
 char sModel[192];
 
 Handle cvar_timer = INVALID_HANDLE;
+Handle g_SlapDamage = INVALID_HANDLE;
+Handle g_PunishDelay = INVALID_HANDLE;
 
 Handle hOnZoneCreated;
 
 Handle g_hClientTimers[MAXPLAYERS + 1] = {INVALID_HANDLE, ...};
+Handle g_hPunishTimers[MAXPLAYERS + 1] = {null, ...};
+char g_numRepeats[MAXPLAYERS + 1] = {0, ...};
 Handle cvar_time;
 
 // PLUGIN INFO
@@ -65,24 +68,29 @@ public Plugin myinfo =
 	name = "Advanced AntiCamp",
 	author = "Sarrus, Franc1sco",
 	description = "Adds zones where players can't camp for more than a specific amount of time.",
-	version = VERSION,
+	version = PLUGIN_VERSION,
 	url = ""
 };
 
 public void OnPluginStart() {
 	LoadTranslations("advancedanticamp.phrases");
+
+	CreateConVar("advanced_anticamp_version", PLUGIN_VERSION, "Plugin Version", FCVAR_REPLICATED);
 	cvar_filter = CreateConVar("sm_devzones_filter", "1", "1 = Only allow valid alive clients to be detected in the native zones. 0 = Detect entities and all (you need to add more checkers in the third party plugins).");
 	cvar_mode = CreateConVar("sm_devzones_mode", "1", "0 = Use checks every X seconds for check if a player join or leave a zone, 1 = hook zone entities with OnStartTouch and OnEndTouch (less CPU consume)");
 	cvar_checker = CreateConVar("sm_devzones_checker", "5.0", "checks and beambox refreshs per second, low value = more precise but more CPU consume, More hight = less precise but less CPU consume");
 	cvar_model = CreateConVar("sm_devzones_model", "models/error.mdl", "Use a model for zone entity (IMPORTANT: change this value only on map start)");
 	cvar_time = CreateConVar("sm_devzones_anticamptime", "10", "Time in seconds before players must leave the zone or die");
+	g_SlapDamage = CreateConVar("sm_advancedanticamp_slapdamage", "0", "Damage to inflict to the player when slapping.", 0, true, 0.0, true, 100.0);
+	g_PunishDelay = CreateConVar("sm_advancedanticamp_punishdelay", "2", "How much time before slapping.", 0, true, 0.0);
 	g_Zones = CreateArray(256);
-	RegAdminCmd("sm_zones", Command_CampZones, ADMFLAG_CUSTOM6);
+	RegAdminCmd("sm_campzones", Command_CampZones, ADMFLAG_CUSTOM6);
 	RegConsoleCmd("say", fnHookSay);
+
 	HookEventEx("round_start", Event_OnRoundStart);
+	HookEventEx("round_end", Event_OnRoundEnd, EventHookMode_Pre);
 	HookEventEx("player_spawn", Event_PlayerSpawn, EventHookMode_Pre);
 	HookEventEx("teamplay_round_start", Event_OnRoundStart);
-	//HookEvent("round_start", OnRoundStart);
 
 	GetCVars();
 
@@ -90,6 +98,9 @@ public void OnPluginStart() {
 	HookConVarChange(cvar_checker, CVarChange);
 	HookConVarChange(cvar_mode, CVarChange);
 	HookConVarChange(cvar_model, CVarChange);
+	HookConVarChange(g_SlapDamage, CVarChange);
+	HookConVarChange(g_PunishDelay, CVarChange);
+	AutoExecConfig(true,"plugin.advancedanticamp");
 
 }
 
@@ -1385,6 +1396,10 @@ public void OnClientPutInServer(int client)
 	if (g_hClientTimers[client] != INVALID_HANDLE)
 		KillTimer(g_hClientTimers[client]);
 	g_hClientTimers[client] = INVALID_HANDLE;
+	if (g_hPunishTimers[client] != null)
+		KillTimer(g_hPunishTimers[client]);
+	g_hPunishTimers[client] = null;
+	g_numRepeats[client] = 0;
 }
 
 public void OnClientDisconnect(int client)
@@ -1392,31 +1407,66 @@ public void OnClientDisconnect(int client)
 	if (g_hClientTimers[client] != INVALID_HANDLE)
 		KillTimer(g_hClientTimers[client]);
 	g_hClientTimers[client] = INVALID_HANDLE;
+	if (g_hPunishTimers[client] != null)
+		KillTimer(g_hPunishTimers[client]);
+	g_hPunishTimers[client] = null;
+	g_numRepeats[client] = 0;
+}
+
+public void OnClientDied(int client)
+{
+	if (g_hClientTimers[client] != INVALID_HANDLE)
+		KillTimer(g_hClientTimers[client]);
+	g_hClientTimers[client] = INVALID_HANDLE;
+	if (g_hPunishTimers[client] != null)
+		KillTimer(g_hPunishTimers[client]);
+	g_hPunishTimers[client] = null;
+	g_numRepeats[client] = 0;
+}
+
+public Action Event_OnRoundEnd(Event hEvent, char[] sEvName, bool bDontBroadcast)
+{
+	for(int iClient = 1; iClient <= MaxClients; iClient++)
+    {
+      if(IsClientInGame(iClient))
+      {
+				if (g_hClientTimers[iClient] != INVALID_HANDLE)
+					KillTimer(g_hClientTimers[iClient]);
+				g_hClientTimers[iClient] = INVALID_HANDLE;
+				if (g_hPunishTimers[iClient] != null)
+					KillTimer(g_hPunishTimers[iClient]);
+				g_hPunishTimers[iClient] = null;
+				g_numRepeats[iClient] = 0;
+      }
+    }
 }
 
 public void Zone_OnClientEntry(int client, char[] zone)
 {
-	if(client < 1 || client > MaxClients || !IsClientInGame(client) ||!IsPlayerAlive(client))
+	if(client < 2 || client > MaxClients || !IsClientInGame(client) ||!IsPlayerAlive(client) || IsWarmup())
 		return;
 
-	if((StrContains(zone, "AntiCampCT", false) == 0 && GetClientTeam(client) == 3) || (StrContains(zone, "AntiCampTT", false) == 0 && GetClientTeam(client) == 2))
+	if((StrContains(zone, "AntiCampCT", false) == 0 && GetClientTeam(client) == 3) || (StrContains(zone, "AntiCampT", false) == 0 && GetClientTeam(client) == 2) || (StrContains(zone, "AntiCampBoth", false) == 0))
 	{
 		int seconds = GetConVarInt(cvar_time);
 		g_hClientTimers[client] = CreateTimer(seconds * 1.0, Timer_End, client);
-		//PrintHintText(client, "You has entered in a AntiCamp Zone for your team\nYou have %i seconds for leave this zone or you will die", seconds);
 	}
 }
 
 public void Zone_OnClientLeave(int client, char[] zone)
 {
-	if(client < 1 || client > MaxClients || !IsClientInGame(client) ||!IsPlayerAlive(client))
+	if(client < 2 || client > MaxClients || !IsClientInGame(client) || !IsPlayerAlive(client) || IsWarmup())
 		return;
 
-	if((StrContains(zone, "AntiCampCT", false) == 0 && GetClientTeam(client) == 3) || (StrContains(zone, "AntiCampTT", false) == 0 && GetClientTeam(client) == 2))
+	if((StrContains(zone, "AntiCampCT", false) == 0 && GetClientTeam(client) == 3) || (StrContains(zone, "AntiCampT", false) == 0 && GetClientTeam(client) == 2))
 	{
 		if (g_hClientTimers[client] != INVALID_HANDLE)
 			KillTimer(g_hClientTimers[client]);
+		if (g_hPunishTimers[client] != null)
+			KillTimer(g_hPunishTimers[client]);
 		g_hClientTimers[client] = INVALID_HANDLE;
+		g_hPunishTimers[client] = null;
+		g_numRepeats[client] = 0;
 	}
 }
 
@@ -1424,9 +1474,34 @@ public Action Timer_End(Handle timer, any client)
 {
 	if(IsPlayerAlive(client))
 	{
-		CPrintToChatAll("%t", "Camp_Message", client);
-		//ForcePlayerSuicide(client);
-		//S_PrintToChatAll("%t",  "Camp_Message", client);
+		g_hPunishTimers[client] = CreateTimer(GetConVarFloat(g_PunishDelay), Punish_Timer, client, TIMER_REPEAT);
+		PrintHintText(client, "%t", "Camp_Message_Warning", g_PunishDelay);
 	}
 	g_hClientTimers[client] = INVALID_HANDLE;
+}
+
+public Action Punish_Timer(Handle timer, any client)
+{
+	if (g_numRepeats[client] == 0 && IsPlayerAlive(client))
+	{
+		g_numRepeats[client]++;
+		return Plugin_Continue;
+	}
+	else if (g_numRepeats[client] >= 1 && IsPlayerAlive(client))
+	{
+		CPrintToChatAll("%t", "Camp_Message_All", client);
+		SlapPlayer(client, GetConVarInt(g_SlapDamage), true);
+		return Plugin_Continue;
+	}
+	else
+	{
+		g_hPunishTimers[client] = null;
+		g_numRepeats[client] = 0;
+		return Plugin_Stop;
+	}
+}
+
+bool IsWarmup()
+{
+	return (GameRules_GetProp("m_bWarmupPeriod") == 1);
 }

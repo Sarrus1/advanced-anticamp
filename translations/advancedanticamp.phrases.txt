@@ -1,8 +1,13 @@
 "Phrases"
 {
-    "Camp_Message"
+    "Camp_Message_All"
     {
         "#format" "{1:N}"
-        "en"        "[{green}Anti-Camp{default}] {1} is camping!"
+        "en"        "{green}[Anti-Camp]{gold} {1} {default}is camping!"
+    }
+    "Camp_Message_Warning"
+    {
+        "#format" "{1:N}"
+        "en"        "You are in a no camping zone. If you don't get out in the next {1} seconds, you'll be punished."
     }
 }
