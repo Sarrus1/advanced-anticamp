@@ -5,3 +5,4 @@ An advanced anti-camp plugin for CS:GO
 - Add a Cvar to set slap frequency
 - Fix hint messages not being displayed
 - Add translation phrases
+- Do a cooldown system
