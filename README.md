@@ -19,7 +19,7 @@ The config file will be automatically generated in cfg/sourcemod/
 ### Creating zones ###
 Once the plugin has been loaded, admins can type !campzones in chat to open the zone menu. From there you can create a zone by pointing your cursor at where you want to create the zone.
 
-** IMPORTANT ** Be sure to save zones both in main menu and the newly created zone meny, otherwise the changes won't be saved!
+**IMPORTANT** Be sure to save zones both in main menu and the newly created zone meny, otherwise the changes won't be saved!
 
 ### Editing zones ###
 Once a zone has been created, you can modifiy it my typing !campzones in chat and selecting "Edit Zones" in the menu.
