@@ -22,7 +22,7 @@ Once the plugin has been loaded, admins can type !campzones in chat to open the 
 ### Editing zones ###
 Once a zone has been created, you can modifiy it my typing !campzones in chat and selecting "Edit Zones" in the menu.
 
-### Restrict the zone ###
+### Restrict zones ###
 If don't want CT to camp in a zone, inclue "AnticampCT" in the name of the zone.
 For T, use "AnticampT".
 For Both teams, use "AnticampBoth"
