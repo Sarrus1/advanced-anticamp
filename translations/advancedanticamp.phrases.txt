@@ -7,7 +7,7 @@
     }
     "Camp_Message_Warning"
     {
-        "#format" "{1:N}"
+        "#format" "{1:i}"
         "en"        "You are in a no camping zone. If you don't get out in the next {1} seconds, you'll be punished."
     }
 }

@@ -54,11 +54,13 @@ char sModel[192];
 Handle cvar_timer = INVALID_HANDLE;
 Handle g_SlapDamage = INVALID_HANDLE;
 Handle g_PunishDelay = INVALID_HANDLE;
+Handle g_PunishFreq = INVALID_HANDLE;
 
 Handle hOnZoneCreated;
 
-Handle g_hClientTimers[MAXPLAYERS + 1] = {INVALID_HANDLE, ...};
+Handle g_hClientTimers[MAXPLAYERS + 1] = {null, ...};
 Handle g_hPunishTimers[MAXPLAYERS + 1] = {null, ...};
+Handle g_hFreqTimers[MAXPLAYERS + 1] = {null, ...};
 char g_numRepeats[MAXPLAYERS + 1] = {0, ...};
 Handle cvar_time;
 
@@ -76,13 +78,14 @@ public void OnPluginStart() {
 	LoadTranslations("advancedanticamp.phrases");
 
 	CreateConVar("advanced_anticamp_version", PLUGIN_VERSION, "Plugin Version", FCVAR_REPLICATED);
-	cvar_filter = CreateConVar("sm_devzones_filter", "1", "1 = Only allow valid alive clients to be detected in the native zones. 0 = Detect entities and all (you need to add more checkers in the third party plugins).");
-	cvar_mode = CreateConVar("sm_devzones_mode", "1", "0 = Use checks every X seconds for check if a player join or leave a zone, 1 = hook zone entities with OnStartTouch and OnEndTouch (less CPU consume)");
-	cvar_checker = CreateConVar("sm_devzones_checker", "5.0", "checks and beambox refreshs per second, low value = more precise but more CPU consume, More hight = less precise but less CPU consume");
-	cvar_model = CreateConVar("sm_devzones_model", "models/error.mdl", "Use a model for zone entity (IMPORTANT: change this value only on map start)");
-	cvar_time = CreateConVar("sm_devzones_anticamptime", "10", "Time in seconds before players must leave the zone or die");
+	cvar_filter = CreateConVar("sm_advancedanticamp_filter", "1", "1 = Only allow valid alive clients to be detected in the native zones. 0 = Detect entities and all (you need to add more checkers in the third party plugins).");
+	cvar_mode = CreateConVar("sm_advancedanticamp_mode", "1", "0 = Use checks every X seconds for check if a player join or leave a zone, 1 = hook zone entities with OnStartTouch and OnEndTouch (less CPU consume)");
+	cvar_checker = CreateConVar("sm_advancedanticamp_checker", "5.0", "checks and beambox refreshs per second, low value = more precise but more CPU consume, More hight = less precise but less CPU consume");
+	cvar_model = CreateConVar("sm_advancedanticamp_model", "models/error.mdl", "Use a model for zone entity (IMPORTANT: change this value only on map start)");
+	cvar_time = CreateConVar("sm_advancedanticamp_time", "10", "Time in seconds before players must leave the zone or die");
 	g_SlapDamage = CreateConVar("sm_advancedanticamp_slapdamage", "0", "Damage to inflict to the player when slapping.", 0, true, 0.0, true, 100.0);
 	g_PunishDelay = CreateConVar("sm_advancedanticamp_punishdelay", "2", "How much time before slapping.", 0, true, 0.0);
+	g_PunishFreq = CreateConVar("sm_advancedanticamp_punishfreq", "2", "How much time between slaps.", 0, true, 0.0);
 	g_Zones = CreateArray(256);
 	RegAdminCmd("sm_campzones", Command_CampZones, ADMFLAG_CUSTOM6);
 	RegConsoleCmd("say", fnHookSay);
@@ -282,6 +285,16 @@ public void OnMapStart() {
 
 public void OnMapEnd() {
 	SaveZones(0);
+	for(int iClient = 1; iClient <= MaxClients; iClient++)
+    {
+      if(IsClientInGame(iClient))
+      {
+				delete(g_hClientTimers[iClient]);
+				delete(g_hPunishTimers[iClient]);
+				delete(g_hFreqTimers[iClient]);
+				g_numRepeats[iClient] = 0;
+      }
+    }
 }
 
 public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3], float angles[3], int &weapon) {
@@ -1391,56 +1404,50 @@ stock bool Entity_SetGlobalName(int entity, const char[] name, any:...)
 
 
 //Anticamp part
+
+//Reset timer when client arrives
 public void OnClientPutInServer(int client)
 {
-	if (g_hClientTimers[client] != INVALID_HANDLE)
-		KillTimer(g_hClientTimers[client]);
-	g_hClientTimers[client] = INVALID_HANDLE;
-	if (g_hPunishTimers[client] != null)
-		KillTimer(g_hPunishTimers[client]);
-	g_hPunishTimers[client] = null;
+	delete(g_hClientTimers[client]);
+	delete(g_hPunishTimers[client]);
+	delete(g_hFreqTimers[client]);
 	g_numRepeats[client] = 0;
 }
 
+//Reset timer when client disconnects
 public void OnClientDisconnect(int client)
 {
-	if (g_hClientTimers[client] != INVALID_HANDLE)
-		KillTimer(g_hClientTimers[client]);
-	g_hClientTimers[client] = INVALID_HANDLE;
-	if (g_hPunishTimers[client] != null)
-		KillTimer(g_hPunishTimers[client]);
-	g_hPunishTimers[client] = null;
+	delete(g_hClientTimers[client]);
+	delete(g_hPunishTimers[client]);
+	delete(g_hFreqTimers[client]);
 	g_numRepeats[client] = 0;
 }
 
+//Reset timer when client dies
 public void OnClientDied(int client)
 {
-	if (g_hClientTimers[client] != INVALID_HANDLE)
-		KillTimer(g_hClientTimers[client]);
-	g_hClientTimers[client] = INVALID_HANDLE;
-	if (g_hPunishTimers[client] != null)
-		KillTimer(g_hPunishTimers[client]);
-	g_hPunishTimers[client] = null;
+	delete(g_hClientTimers[client]);
+	delete(g_hPunishTimers[client]);
+	delete(g_hFreqTimers[client]);
 	g_numRepeats[client] = 0;
 }
 
+//Reset timer when the round ends
 public Action Event_OnRoundEnd(Event hEvent, char[] sEvName, bool bDontBroadcast)
 {
 	for(int iClient = 1; iClient <= MaxClients; iClient++)
     {
       if(IsClientInGame(iClient))
       {
-				if (g_hClientTimers[iClient] != INVALID_HANDLE)
-					KillTimer(g_hClientTimers[iClient]);
-				g_hClientTimers[iClient] = INVALID_HANDLE;
-				if (g_hPunishTimers[iClient] != null)
-					KillTimer(g_hPunishTimers[iClient]);
-				g_hPunishTimers[iClient] = null;
+				delete(g_hClientTimers[iClient]);
+				delete(g_hPunishTimers[iClient]);
+				delete(g_hFreqTimers[iClient]);
 				g_numRepeats[iClient] = 0;
       }
     }
 }
 
+//Start timer when client enters a zone
 public void Zone_OnClientEntry(int client, char[] zone)
 {
 	if(client < 2 || client > MaxClients || !IsClientInGame(client) ||!IsPlayerAlive(client) || IsWarmup())
@@ -1448,57 +1455,78 @@ public void Zone_OnClientEntry(int client, char[] zone)
 
 	if((StrContains(zone, "AntiCampCT", false) == 0 && GetClientTeam(client) == 3) || (StrContains(zone, "AntiCampT", false) == 0 && GetClientTeam(client) == 2) || (StrContains(zone, "AntiCampBoth", false) == 0))
 	{
+		delete(g_hClientTimers[client]);
+		g_numRepeats[client] = 0;
 		int seconds = GetConVarInt(cvar_time);
-		g_hClientTimers[client] = CreateTimer(seconds * 1.0, Timer_End, client);
+		g_hClientTimers[client] = CreateTimer(seconds * 1.0, Timer_End, GetClientUserId(client));
 	}
 }
 
+
+//Stop timer when client leaves a zone
 public void Zone_OnClientLeave(int client, char[] zone)
 {
 	if(client < 2 || client > MaxClients || !IsClientInGame(client) || !IsPlayerAlive(client) || IsWarmup())
 		return;
 
-	if((StrContains(zone, "AntiCampCT", false) == 0 && GetClientTeam(client) == 3) || (StrContains(zone, "AntiCampT", false) == 0 && GetClientTeam(client) == 2))
+	if((StrContains(zone, "AntiCampCT", false) == 0 && GetClientTeam(client) == 3) || (StrContains(zone, "AntiCampT", false) == 0 && GetClientTeam(client) == 2) || (StrContains(zone, "AntiCampBoth", false) == 0))
 	{
-		if (g_hClientTimers[client] != INVALID_HANDLE)
-			KillTimer(g_hClientTimers[client]);
-		if (g_hPunishTimers[client] != null)
-			KillTimer(g_hPunishTimers[client]);
-		g_hClientTimers[client] = INVALID_HANDLE;
-		g_hPunishTimers[client] = null;
+		delete(g_hClientTimers[client]);
+		delete(g_hPunishTimers[client]);
+		delete(g_hFreqTimers[client]);
 		g_numRepeats[client] = 0;
 	}
 }
 
-public Action Timer_End(Handle timer, any client)
+
+//What do to when the main timer ends
+public Action Timer_End(Handle timer, int UserId)
 {
-	if(IsPlayerAlive(client))
+	int client = GetClientOfUserId(UserId);
+	g_hClientTimers[client] = null;
+	if ( client && IsClientInGame(client) )
 	{
-		g_hPunishTimers[client] = CreateTimer(GetConVarFloat(g_PunishDelay), Punish_Timer, client, TIMER_REPEAT);
-		PrintHintText(client, "%t", "Camp_Message_Warning", g_PunishDelay);
+		if(IsPlayerAlive(client))
+		{
+			delete(g_hPunishTimers[client]);
+			g_hPunishTimers[client] = CreateTimer(GetConVarFloat(g_PunishDelay), Punish_Timer, GetClientUserId(client));
+			PrintCenterText(client, "%t", "Camp_Message_Warning", GetConVarInt(g_PunishDelay) );
+		}
 	}
-	g_hClientTimers[client] = INVALID_HANDLE;
 }
 
-public Action Punish_Timer(Handle timer, any client)
+//What to do when the punish timer ends
+public Action Punish_Timer(Handle timer, int UserId)
 {
-	if (g_numRepeats[client] == 0 && IsPlayerAlive(client))
+	int client = GetClientOfUserId(UserId);
+	g_hPunishTimers[client] = null;
+	if ( client && IsClientInGame(client) )
 	{
-		g_numRepeats[client]++;
-		return Plugin_Continue;
-	}
-	else if (g_numRepeats[client] >= 1 && IsPlayerAlive(client))
-	{
-		CPrintToChatAll("%t", "Camp_Message_All", client);
-		SlapPlayer(client, GetConVarInt(g_SlapDamage), true);
-		return Plugin_Continue;
-	}
-	else
-	{
-		g_hPunishTimers[client] = null;
+		if (IsPlayerAlive(client))
+		{
+			CPrintToChatAll("%t", "Camp_Message_All", client);
+			SlapPlayer(client, GetConVarInt(g_SlapDamage), true);
+			g_hFreqTimers[client] = null;
+			g_hFreqTimers[client] = CreateTimer(GetConVarFloat(g_PunishFreq), Repeat_Timer, GetClientUserId(client), TIMER_REPEAT);
+		}
 		g_numRepeats[client] = 0;
-		return Plugin_Stop;
 	}
+}
+
+public Action Repeat_Timer(Handle timer, int UserId)
+{
+	int client = GetClientOfUserId(UserId);
+	if ( client && IsClientInGame(client) )
+	{
+		if (IsPlayerAlive(client))
+		{
+			CPrintToChatAll("%t", "Camp_Message_All", client);
+			SlapPlayer(client, GetConVarInt(g_SlapDamage), true);
+			return Plugin_Continue;
+		}
+	}
+	g_hFreqTimers[client] = null;
+	return Plugin_Stop;
 }
 
 bool IsWarmup()
