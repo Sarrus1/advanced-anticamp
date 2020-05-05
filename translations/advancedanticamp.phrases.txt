@@ -4,10 +4,12 @@
     {
         "#format" "{1:N}"
         "en"        "{green}[Anti-Camp]{gold} {1} {default}is camping!"
+        "fr"        "{green}[Anti-Camp]{gold} {1} {default}est en train de camper!"
     }
     "Camp_Message_Warning"
     {
         "#format" "{1:i}"
-        "en"        "You are in a no camping zone. If you don't get out in the next {1} seconds, you'll be punished."
+        "en"        "Stop camping in the next {1} seconds or you'll be punished."
+        "fr"        "Arrêtez de camper dans les prochaines {1} secondes ou vous serez punis."
     }
 }
