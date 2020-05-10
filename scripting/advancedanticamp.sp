@@ -4,7 +4,7 @@
 #include <colorvariables>
 
 
-#define PLUGIN_VERSION "0.1.0"
+#define PLUGIN_VERSION "1.2.0"
 #pragma newdecls required
 
 #define MAX_ZONES 256
@@ -63,6 +63,9 @@ Handle g_hClientTimers[MAXPLAYERS + 1] = {null, ...};
 Handle g_hPunishTimers[MAXPLAYERS + 1] = {null, ...};
 Handle g_hFreqTimers[MAXPLAYERS + 1] = {null, ...};
 Handle g_hCooldownTimers[MAXPLAYERS + 1] = {null, ...};
+Handle g_AntiCampDisable = null;
+bool g_anticampdisabled = false;
+Handle g_disabletime;
 Handle cvar_time;
 
 // PLUGIN INFO
@@ -88,6 +91,7 @@ public void OnPluginStart() {
 	g_PunishDelay = CreateConVar("sm_advancedanticamp_punishdelay", "2", "How much time before slapping.", 0, true, 0.0);
 	g_PunishFreq = CreateConVar("sm_advancedanticamp_punishfreq", "2", "How much time between slaps.", 0, true, 0.0);
 	g_CooldownDelay = CreateConVar("sm_advancedanticamp_cooldown_delay", "5.0", "How much time a client has to be out of a camping zone before he is no longer instantly slapped when entering one.", 0, true, 0.0);
+	g_disabletime = CreateConVar("sm_advancedanticamp_disabletime", "40", "How much time after the round start until the timer automatically disables.", 0, true, 0.0);
 	g_Zones = CreateArray(256);
 	RegAdminCmd("sm_campzones", Command_CampZones, ADMFLAG_CUSTOM6);
 	RegConsoleCmd("say", fnHookSay);
@@ -105,6 +109,9 @@ public void OnPluginStart() {
 	HookConVarChange(cvar_model, CVarChange);
 	HookConVarChange(g_SlapDamage, CVarChange);
 	HookConVarChange(g_PunishDelay, CVarChange);
+	HookConVarChange(g_PunishFreq, CVarChange);
+	HookConVarChange(g_disabletime, CVarChange);
+	HookConVarChange(g_CooldownDelay, CVarChange);
 	AutoExecConfig(true,"plugin.advancedanticamp");
 
 }
@@ -159,9 +166,21 @@ public void OnClientPostAdminCheck(int client) {
 	resetClient(client);
 }
 
-public Action Event_OnRoundStart(Handle event, const char[] name, bool dontBroadcast) {
+public Action Event_OnRoundStart(Handle event, const char[] name, bool dontBroadcast)
+{
 	if (mode_plugin)
+	{
 		RefreshZones();
+	}
+	if (IsFreezeTime())
+	{
+		g_AntiCampDisable = CreateTimer(GetConVarFloat(g_disabletime) + GetConVarFloat(FindConVar("mp_freezetime")), AntiCamp_Disable);
+	}
+	else
+	{
+		g_AntiCampDisable = CreateTimer(GetConVarFloat(g_disabletime), AntiCamp_Disable);
+	}
+	g_anticampdisabled = false;
 }
 
 public int CreateZoneEntity(float fMins[3], float fMaxs[3], char sZoneName[64]) {
@@ -1437,6 +1456,7 @@ public void OnClientDied(int client)
 //Reset timer when the round ends
 public Action Event_OnRoundEnd(Event hEvent, char[] sEvName, bool bDontBroadcast)
 {
+	delete(g_AntiCampDisable);
 	for(int iClient = 1; iClient <= MaxClients; iClient++)
     {
       if(IsClientInGame(iClient))
@@ -1452,7 +1472,7 @@ public Action Event_OnRoundEnd(Event hEvent, char[] sEvName, bool bDontBroadcast
 //Start timer when client enters a zone
 public void Zone_OnClientEntry(int client, char[] zone)
 {
-	if(client < 2 || client > MaxClients || !IsClientInGame(client) ||!IsPlayerAlive(client) || IsWarmup())
+	if(client < 2 || client > MaxClients || !IsClientInGame(client) ||!IsPlayerAlive(client) || IsWarmup() || g_anticampdisabled)
 		return;
 
 	if((StrContains(zone, "AntiCampCT", false) == 0 && GetClientTeam(client) == 3) || (StrContains(zone, "AntiCampT", false) == 0 && GetClientTeam(client) == 2) || (StrContains(zone, "AntiCampBoth", false) == 0))
@@ -1486,7 +1506,7 @@ public void Zone_OnClientEntry(int client, char[] zone)
 //Stop timer when client leaves a zone
 public void Zone_OnClientLeave(int client, char[] zone)
 {
-	if(client < 2 || client > MaxClients || !IsClientInGame(client) || !IsPlayerAlive(client) || IsWarmup())
+	if(client < 2 || client > MaxClients || !IsClientInGame(client) || !IsPlayerAlive(client) || IsWarmup() || g_anticampdisabled)
 		return;
 
 	if((StrContains(zone, "AntiCampCT", false) == 0 && GetClientTeam(client) == 3) || (StrContains(zone, "AntiCampT", false) == 0 && GetClientTeam(client) == 2) || (StrContains(zone, "AntiCampBoth", false) == 0))
@@ -1559,6 +1579,24 @@ public Action Repeat_Timer(Handle timer, int UserId)
 	}
 	g_hFreqTimers[client] = null;
 	return Plugin_Stop;
+}
+
+
+public Action AntiCamp_Disable(Handle timer)
+{
+	g_anticampdisabled = true;
+	CPrintToChatAll("%t", "AntiCamp_Disabled");
+	for(int iClient = 1; iClient <= MaxClients; iClient++)
+  {
+    if(IsClientInGame(iClient))
+    {
+			delete(g_hClientTimers[iClient]);
+			delete(g_hPunishTimers[iClient]);
+			delete(g_hFreqTimers[iClient]);
+			delete(g_hCooldownTimers[iClient]);
+    }
+  }
+	g_AntiCampDisable = null;
 }
 
 bool IsWarmup()
