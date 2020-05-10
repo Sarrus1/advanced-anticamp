@@ -55,13 +55,14 @@ Handle cvar_timer = INVALID_HANDLE;
 Handle g_SlapDamage = INVALID_HANDLE;
 Handle g_PunishDelay = INVALID_HANDLE;
 Handle g_PunishFreq = INVALID_HANDLE;
+Handle g_CooldownDelay = INVALID_HANDLE;
 
 Handle hOnZoneCreated;
 
 Handle g_hClientTimers[MAXPLAYERS + 1] = {null, ...};
 Handle g_hPunishTimers[MAXPLAYERS + 1] = {null, ...};
 Handle g_hFreqTimers[MAXPLAYERS + 1] = {null, ...};
-char g_numRepeats[MAXPLAYERS + 1] = {0, ...};
+Handle g_hCooldownTimers[MAXPLAYERS + 1] = {null, ...};
 Handle cvar_time;
 
 // PLUGIN INFO
@@ -86,6 +87,7 @@ public void OnPluginStart() {
 	g_SlapDamage = CreateConVar("sm_advancedanticamp_slapdamage", "0", "Damage to inflict to the player when slapping.", 0, true, 0.0, true, 100.0);
 	g_PunishDelay = CreateConVar("sm_advancedanticamp_punishdelay", "2", "How much time before slapping.", 0, true, 0.0);
 	g_PunishFreq = CreateConVar("sm_advancedanticamp_punishfreq", "2", "How much time between slaps.", 0, true, 0.0);
+	g_CooldownDelay = CreateConVar("sm_advancedanticamp_cooldown_delay", "5.0", "How much time a client has to be out of a camping zone before he is no longer instantly slapped when entering one.", 0, true, 0.0);
 	g_Zones = CreateArray(256);
 	RegAdminCmd("sm_campzones", Command_CampZones, ADMFLAG_CUSTOM6);
 	RegConsoleCmd("say", fnHookSay);
@@ -292,7 +294,7 @@ public void OnMapEnd() {
 				delete(g_hClientTimers[iClient]);
 				delete(g_hPunishTimers[iClient]);
 				delete(g_hFreqTimers[iClient]);
-				g_numRepeats[iClient] = 0;
+				delete(g_hCooldownTimers[iClient]);
       }
     }
 }
@@ -1411,7 +1413,7 @@ public void OnClientPutInServer(int client)
 	delete(g_hClientTimers[client]);
 	delete(g_hPunishTimers[client]);
 	delete(g_hFreqTimers[client]);
-	g_numRepeats[client] = 0;
+	delete(g_hCooldownTimers[client]);
 }
 
 //Reset timer when client disconnects
@@ -1420,7 +1422,7 @@ public void OnClientDisconnect(int client)
 	delete(g_hClientTimers[client]);
 	delete(g_hPunishTimers[client]);
 	delete(g_hFreqTimers[client]);
-	g_numRepeats[client] = 0;
+	delete(g_hCooldownTimers[client]);
 }
 
 //Reset timer when client dies
@@ -1429,7 +1431,7 @@ public void OnClientDied(int client)
 	delete(g_hClientTimers[client]);
 	delete(g_hPunishTimers[client]);
 	delete(g_hFreqTimers[client]);
-	g_numRepeats[client] = 0;
+	delete(g_hCooldownTimers[client]);
 }
 
 //Reset timer when the round ends
@@ -1442,7 +1444,7 @@ public Action Event_OnRoundEnd(Event hEvent, char[] sEvName, bool bDontBroadcast
 				delete(g_hClientTimers[iClient]);
 				delete(g_hPunishTimers[iClient]);
 				delete(g_hFreqTimers[iClient]);
-				g_numRepeats[iClient] = 0;
+				delete(g_hCooldownTimers[iClient]);
       }
     }
 }
@@ -1455,10 +1457,28 @@ public void Zone_OnClientEntry(int client, char[] zone)
 
 	if((StrContains(zone, "AntiCampCT", false) == 0 && GetClientTeam(client) == 3) || (StrContains(zone, "AntiCampT", false) == 0 && GetClientTeam(client) == 2) || (StrContains(zone, "AntiCampBoth", false) == 0))
 	{
-		delete(g_hClientTimers[client]);
-		g_numRepeats[client] = 0;
-		int seconds = GetConVarInt(cvar_time);
-		g_hClientTimers[client] = CreateTimer(seconds * 1.0, Timer_End, GetClientUserId(client));
+		if (g_hCooldownTimers[client] == null)
+		{
+			delete(g_hClientTimers[client]);
+			if (IsFreezeTime())
+			{
+				g_hClientTimers[client] = CreateTimer(GetConVarFloat(cvar_time) + GetConVarFloat(FindConVar("mp_freezetime")), Timer_End, GetClientUserId(client));
+			}
+			else
+			{
+				g_hClientTimers[client] = CreateTimer(GetConVarFloat(cvar_time), Timer_End, GetClientUserId(client));
+			}
+		}
+		else
+		{
+			delete(g_hClientTimers[client]);
+			delete(g_hPunishTimers[client]);
+			delete(g_hCooldownTimers[client]);
+			delete(g_hFreqTimers[client]);
+			CPrintToChat(client, "%t", "Cooldown_Not_Expired");
+			SlapPlayer(client, GetConVarInt(g_SlapDamage), true);
+			g_hFreqTimers[client] = CreateTimer(GetConVarFloat(g_PunishFreq), Repeat_Timer, GetClientUserId(client), TIMER_REPEAT);
+		}
 	}
 }
 
@@ -1471,13 +1491,26 @@ public void Zone_OnClientLeave(int client, char[] zone)
 
 	if((StrContains(zone, "AntiCampCT", false) == 0 && GetClientTeam(client) == 3) || (StrContains(zone, "AntiCampT", false) == 0 && GetClientTeam(client) == 2) || (StrContains(zone, "AntiCampBoth", false) == 0))
 	{
+		delete(g_hCooldownTimers[client]);
+		//Starting the cooldown timer
+		if ((GetConVarInt(g_CooldownDelay) != 0) && ((g_hPunishTimers[client] != null) || (g_hFreqTimers[client] != null)))
+		{
+			g_hCooldownTimers[client] = CreateTimer(GetConVarFloat(g_CooldownDelay), Cooldown_End, GetClientUserId(client));
+		}
 		delete(g_hClientTimers[client]);
 		delete(g_hPunishTimers[client]);
 		delete(g_hFreqTimers[client]);
-		g_numRepeats[client] = 0;
 	}
 }
 
+
+//What to do when the cooldown ends
+public Action Cooldown_End(Handle timer, int UserId)
+{
+	int client = GetClientOfUserId(UserId);
+	CPrintToChat(client, "%t", "Cooldown_Expired");
+	g_hCooldownTimers[client] = null;
+}
 
 //What do to when the main timer ends
 public Action Timer_End(Handle timer, int UserId)
@@ -1509,7 +1542,6 @@ public Action Punish_Timer(Handle timer, int UserId)
 			g_hFreqTimers[client] = null;
 			g_hFreqTimers[client] = CreateTimer(GetConVarFloat(g_PunishFreq), Repeat_Timer, GetClientUserId(client), TIMER_REPEAT);
 		}
-		g_numRepeats[client] = 0;
 	}
 }
 
@@ -1520,7 +1552,7 @@ public Action Repeat_Timer(Handle timer, int UserId)
 	{
 		if (IsPlayerAlive(client))
 		{
-			CPrintToChatAll("%t", "Camp_Message_All", client);
+			CPrintToChat(client, "%t", "Camp_Message_Self");
 			SlapPlayer(client, GetConVarInt(g_SlapDamage), true);
 			return Plugin_Continue;
 		}
@@ -1532,4 +1564,9 @@ public Action Repeat_Timer(Handle timer, int UserId)
 bool IsWarmup()
 {
 	return (GameRules_GetProp("m_bWarmupPeriod") == 1);
+}
+
+bool IsFreezeTime()
+{
+	return(GameRules_GetProp("m_bFreezePeriod") == 1);
 }
