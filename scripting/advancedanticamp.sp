@@ -96,10 +96,11 @@ public void OnPluginStart() {
 	RegAdminCmd("sm_campzones", Command_CampZones, ADMFLAG_CUSTOM6);
 	RegConsoleCmd("say", fnHookSay);
 
-	HookEventEx("round_start", Event_OnRoundStart);
-	HookEventEx("round_end", Event_OnRoundEnd, EventHookMode_Pre);
-	HookEventEx("player_spawn", Event_PlayerSpawn, EventHookMode_Pre);
-	HookEventEx("teamplay_round_start", Event_OnRoundStart);
+	HookEvent("round_start", Event_OnRoundStart);
+	HookEvent("round_end", Event_OnRoundEnd, EventHookMode_Pre);
+	HookEvent("player_spawn", Event_PlayerSpawn, EventHookMode_Pre);
+	HookEvent("teamplay_round_start", Event_OnRoundStart);
+	HookEvent("player_death", OnClientDied);
 
 	GetCVars();
 
@@ -1427,7 +1428,7 @@ stock bool Entity_SetGlobalName(int entity, const char[] name, any:...)
 //Anticamp part
 
 //Create a reset timer function
-public void Resettimers(int client)
+public void ResetTimer(int client)
 {
 	delete(g_hClientTimers[client]);
 	delete(g_hPunishTimers[client]);
@@ -1438,19 +1439,20 @@ public void Resettimers(int client)
 //Reset timer when client arrives
 public void OnClientPutInServer(int client)
 {
-	Resettimers(client);
+	ResetTimer(client);
 }
 
 //Reset timer when client disconnects
 public void OnClientDisconnect(int client)
 {
-	Resettimers(client);
+	ResetTimer(client);
 }
 
 //Reset timer when client dies
-public void OnClientDied(int client)
+public Action OnClientDied(Handle event, const char[] name, bool dontBroadcast)
 {
-	Resettimers(client);
+	int client = GetClientOfUserId(GetEventInt(event, "userid"));
+	ResetTimer(client);
 }
 
 //Reset timer when the round ends
@@ -1458,9 +1460,9 @@ public Action Event_OnRoundEnd(Event hEvent, char[] sEvName, bool bDontBroadcast
 {
 	delete(g_AntiCampDisable);
 	for(int iClient = 1; iClient <= MaxClients; iClient++)
-    {
-			Resettimers(iClient);
-    }
+  {
+		ResetTimer(iClient);
+  }
 }
 
 //Start timer when client enters a zone
@@ -1485,7 +1487,7 @@ public void Zone_OnClientEntry(int client, char[] zone)
 		}
 		else
 		{
-			Resettimers(client);
+			ResetTimer(client);
 			CPrintToChat(client, "%t", "Cooldown_Not_Expired");
 			SlapPlayer(client, GetConVarInt(g_SlapDamage), true);
 			g_hFreqTimers[client] = CreateTimer(GetConVarFloat(g_PunishFreq), Repeat_Timer, GetClientUserId(client), TIMER_REPEAT);
@@ -1502,7 +1504,7 @@ public void Zone_OnClientLeave(int client, char[] zone)
 
 	if((StrContains(zone, "AntiCampCT", false) == 0 && GetClientTeam(client) == 3) || (StrContains(zone, "AntiCampT", false) == 0 && GetClientTeam(client) == 2) || (StrContains(zone, "AntiCampBoth", false) == 0))
 	{
-		Resettimers(client);
+		ResetTimer(client);
 		if ((GetConVarInt(g_CooldownDelay) != 0) && ((g_hPunishTimers[client] != null) || (g_hFreqTimers[client] != null)))
 		{
 			g_hCooldownTimers[client] = CreateTimer(GetConVarFloat(g_CooldownDelay), Cooldown_End, GetClientUserId(client));
@@ -1515,6 +1517,10 @@ public void Zone_OnClientLeave(int client, char[] zone)
 public Action Cooldown_End(Handle timer, int UserId)
 {
 	int client = GetClientOfUserId(UserId);
+	if(!client)
+	{
+		return;
+	}
 	CPrintToChat(client, "%t", "Cooldown_Expired");
 	g_hCooldownTimers[client] = null;
 }
@@ -1523,6 +1529,10 @@ public Action Cooldown_End(Handle timer, int UserId)
 public Action Timer_End(Handle timer, int UserId)
 {
 	int client = GetClientOfUserId(UserId);
+	if(!client)
+	{
+		return;
+	}
 	g_hClientTimers[client] = null;
 	if ( client && IsClientInGame(client) && IsPlayerAlive(client))
 	{
@@ -1536,8 +1546,12 @@ public Action Timer_End(Handle timer, int UserId)
 public Action Punish_Timer(Handle timer, int UserId)
 {
 	int client = GetClientOfUserId(UserId);
+	if(!client)
+	{
+		return;
+	}
 	g_hPunishTimers[client] = null;
-	if ( client && IsClientInGame(client) && IsPlayerAlive(client))
+	if (IsClientInGame(client) && IsPlayerAlive(client))
 	{
 			CPrintToChatAll("%t", "Camp_Message_All", client);
 			SlapPlayer(client, GetConVarInt(g_SlapDamage), true);
@@ -1553,7 +1567,7 @@ public Action Repeat_Timer(Handle timer, int UserId)
         return Plugin_Stop; // Stop early, invalid client index.
     }
     if (!IsClientInGame(client) || !IsPlayerAlive(client)) {
-        g_hFreqTimers[client] = null; // Index is fine, null it.
+        g_hFreqTimers[client] = null;
         return Plugin_Stop;
     }
     CPrintToChat(client, "%t", "Camp_Message_Self");
@@ -1567,7 +1581,7 @@ public Action AntiCamp_Disable(Handle timer)
 	CPrintToChatAll("%t", "AntiCamp_Disabled");
 	for(int iClient = 1; iClient <= MaxClients; iClient++)
   {
-		Resettimers(iClient);
+		ResetTimer(iClient);
   }
 	g_AntiCampDisable = null;
 }
