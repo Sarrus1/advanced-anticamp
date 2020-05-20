@@ -36,8 +36,8 @@ For some reasons, the zones won't rename themselves sometimes, so you have to ed
 If you have questions, you can add me on Discord: Sarrus#9090
 
 ## To do ##
-- Add a Cvar to set slap frequency
-- Do a cooldown system
+- ~~Add a Cvar to set slap frequency~~
+- ~~Do a cooldown system~~
 - Make zones without having to rename them
 
 ## Credits ##
