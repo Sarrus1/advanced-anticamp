@@ -101,6 +101,7 @@ public void OnPluginStart() {
 	HookEvent("player_spawn", Event_PlayerSpawn, EventHookMode_Pre);
 	HookEvent("teamplay_round_start", Event_OnRoundStart);
 	HookEvent("player_death", OnClientDied);
+	HookEvent("player_team", OnClientChangeTeam);
 
 	GetCVars();
 
@@ -1445,6 +1446,13 @@ public void OnClientPutInServer(int client)
 //Reset timer when client disconnects
 public void OnClientDisconnect(int client)
 {
+	ResetTimer(client);
+}
+
+//Reset timer when client changes team
+public Action OnClientChangeTeam(Handle event, const char[] name, bool dontBroadcast)
+{
+	int client = GetClientOfUserId(GetEventInt(event, "userid"));
 	ResetTimer(client);
 }
 
