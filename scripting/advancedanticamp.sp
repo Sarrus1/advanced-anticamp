@@ -1454,7 +1454,6 @@ public Action OnClientChangeTeam(Event event, const char[] name, bool dontBroadc
 {
 	int client = GetClientOfUserId(event.GetInt("userid"));
 	ResetTimer(client);
-	LogMessage("Client has changed team, deleting his timers.");
 }
 
 //Reset timer when client dies
@@ -1462,7 +1461,6 @@ public Action OnClientDied(Event event, const char[] name, bool dontBroadcast)
 {
 	int client = GetClientOfUserId(event.GetInt("userid"));
 	ResetTimer(client);
-	LogMessage("Client has died, deleting his timers.");
 }
 
 //Reset timer when the round ends
@@ -1473,7 +1471,6 @@ public Action Event_OnRoundEnd(Event event, const char[] name, bool dontBroadcas
   {
 		ResetTimer(iClient);
   }
-	LogMessage("Round has ended, deleting timers.");
 }
 
 //Start timer when client enters a zone
