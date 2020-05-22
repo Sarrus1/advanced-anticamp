@@ -100,8 +100,8 @@ public void OnPluginStart() {
 	HookEvent("round_end", Event_OnRoundEnd, EventHookMode_Pre);
 	HookEvent("player_spawn", Event_PlayerSpawn, EventHookMode_Pre);
 	HookEvent("teamplay_round_start", Event_OnRoundStart);
-	HookEvent("player_death", OnClientDied);
-	HookEvent("player_team", OnClientChangeTeam);
+	HookEvent("player_death", OnClientDied, EventHookMode_Pre);
+	HookEvent("player_team", OnClientChangeTeam, EventHookMode_Pre);
 
 	GetCVars();
 
@@ -1450,27 +1450,30 @@ public void OnClientDisconnect(int client)
 }
 
 //Reset timer when client changes team
-public Action OnClientChangeTeam(Handle event, const char[] name, bool dontBroadcast)
+public Action OnClientChangeTeam(Event event, const char[] name, bool dontBroadcast)
 {
-	int client = GetClientOfUserId(GetEventInt(event, "userid"));
+	int client = GetClientOfUserId(event.GetInt("userid"));
 	ResetTimer(client);
+	LogMessage("Client has changed team, deleting his timers.");
 }
 
 //Reset timer when client dies
-public Action OnClientDied(Handle event, const char[] name, bool dontBroadcast)
+public Action OnClientDied(Event event, const char[] name, bool dontBroadcast)
 {
-	int client = GetClientOfUserId(GetEventInt(event, "userid"));
+	int client = GetClientOfUserId(event.GetInt("userid"));
 	ResetTimer(client);
+	LogMessage("Client has died, deleting his timers.");
 }
 
 //Reset timer when the round ends
-public Action Event_OnRoundEnd(Event hEvent, char[] sEvName, bool bDontBroadcast)
+public Action Event_OnRoundEnd(Event event, const char[] name, bool dontBroadcast)
 {
 	delete(g_AntiCampDisable);
 	for(int iClient = 1; iClient <= MaxClients; iClient++)
   {
 		ResetTimer(iClient);
   }
+	LogMessage("Round has ended, deleting timers.");
 }
 
 //Start timer when client enters a zone
