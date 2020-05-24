@@ -100,7 +100,7 @@ public void OnPluginStart() {
 	HookEvent("round_end", Event_OnRoundEnd, EventHookMode_Pre);
 	HookEvent("player_spawn", Event_PlayerSpawn, EventHookMode_Pre);
 	HookEvent("teamplay_round_start", Event_OnRoundStart);
-	HookEvent("player_death", OnClientDied, EventHookMode_Pre);
+	HookEvent("player_death", OnClientDied, EventHookMode_Post);
 	HookEvent("player_team", OnClientChangeTeam, EventHookMode_Pre);
 
 	GetCVars();
