@@ -1454,7 +1454,7 @@ public void OnClientDisconnect(int client)
 public Action OnClientChangeTeam(Event event, const char[] name, bool dontBroadcast)
 {
 	int client = GetClientOfUserId(event.GetInt("userid"));
-	ResetTimer(client, true);
+	ResetTimer(client, false);
 }
 
 //Reset timer when client dies
