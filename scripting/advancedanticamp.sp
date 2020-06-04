@@ -97,11 +97,12 @@ public void OnPluginStart() {
 	RegConsoleCmd("say", fnHookSay);
 
 	HookEvent("round_start", Event_OnRoundStart);
-	HookEvent("round_end", Event_OnRoundEnd, EventHookMode_Pre);
+	HookEvent("round_end", OnRoundEnd, EventHookMode_Pre);
 	HookEvent("player_spawn", Event_PlayerSpawn, EventHookMode_Pre);
 	HookEvent("teamplay_round_start", Event_OnRoundStart);
 	HookEvent("player_death", OnClientDied, EventHookMode_Post);
 	HookEvent("player_team", OnClientChangeTeam, EventHookMode_Pre);
+	HookEvent("game_end", OnGameEnd, EventHookMode_Pre);
 
 	GetCVars();
 
@@ -1465,7 +1466,16 @@ public Action OnClientDied(Event event, const char[] name, bool dontBroadcast)
 }
 
 //Reset timer when the round ends
-public Action Event_OnRoundEnd(Event event, const char[] name, bool dontBroadcast)
+public Action OnRoundEnd(Event event, const char[] name, bool dontBroadcast)
+{
+	delete(g_AntiCampDisable);
+	for(int iClient = 1; iClient <= MaxClients; iClient++)
+  {
+		ResetTimer(iClient, true);
+  }
+}
+
+public Action OnGameEnd(Event event, const char[] name, bool dontBroadcast)
 {
 	delete(g_AntiCampDisable);
 	for(int iClient = 1; iClient <= MaxClients; iClient++)
