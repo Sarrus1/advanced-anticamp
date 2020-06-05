@@ -1447,14 +1447,14 @@ public void OnClientDisconnect(int client)
 public Action OnClientChangeTeam(Event event, const char[] name, bool dontBroadcast)
 {
 	int client = GetClientOfUserId(event.GetInt("userid"));
-	ResetTimer(client);
+	RequestFrame(ResetTimer, client);
 }
 
 //Reset timer when client dies
 public Action OnClientDied(Event event, const char[] name, bool dontBroadcast)
 {
 	int client = GetClientOfUserId(event.GetInt("userid"));
-	ResetTimer(client);
+	RequestFrame(ResetTimer, client);
 }
 
 //Reset timer when the round ends
