@@ -296,9 +296,17 @@ public void EntOut_OnEndTouch(const char[] output, int caller, int activator, fl
 public void OnMapStart() {
 
 	for (int i = 1; i < MAXPLAYERS; i++)
+	{
 		resetClient(i);
+	}
 
-
+	char szSoundFilePath[256];
+	char szSoundFullPath[256];
+	GetConVarString(g_szSoundFilePath, szSoundFilePath, 256);
+	szSoundFullPath = "sound/";
+	StrCat(szSoundFullPath, sizeof(szSoundFullPath), szSoundFilePath);
+	AddFileToDownloadsTable(szSoundFullPath);
+	PrecacheSound(szSoundFilePath);
 	g_BeamSprite = PrecacheModel("sprites/laserbeam.vmt");
 	g_HaloSprite = PrecacheModel("materials/sprites/halo.vmt");
 	PrecacheModel(sModel);
