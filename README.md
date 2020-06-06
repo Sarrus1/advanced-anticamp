@@ -13,7 +13,8 @@ The config file will be automatically generated in cfg/sourcemod/
 
 ## Configuration ##
 - You can modify the phrases in addons/sourcemod/translations/advancedanticamp.phrases.txt.
-- Once the plugin has been loaded, you can modify the cvars in cfg/sourcemod/advancedantiamp.cfg
+- Once the plugin has been loaded, you can modify the cvars in cfg/sourcemod/advancedantiamp.cfg.
+- To add a sound, put it in the sound/misc/anticamp folder. It has to be in the .mp3 format. Then, configure the appropriate convar in cfg/sourcemod/avanced_anticamp.cfg by pointing to the sound file relative to the sound folder. Remember to add the sound file to your FASTDL directory aswell.
 
 ## Usage ##
 ### Creating zones ###
@@ -38,6 +39,7 @@ If you have questions, you can add me on Discord: Sarrus#9090
 ## To do ##
 - ~~Add a Cvar to set slap frequency~~
 - ~~Do a cooldown system~~
+- ~~Add sound support~~
 - Make zones without having to rename them
 
 ## Credits ##
