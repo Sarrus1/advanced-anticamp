@@ -1,3 +1,6 @@
+
+![Downloads](https://img.shields.io/github/downloads/Sarrus1/advanced-anticamp/total) ![Last commit](https://img.shields.io/github/last-commit/Sarrus1/advanced-anticamp "Last commit") ![Open issues](https://img.shields.io/github/issues/Sarrus1/advanced-anticamp "Open Issues") ![Closed issues](https://img.shields.io/github/issues-closed/Sarrus1/advanced-anticamp "Closed Issues") ![Size](https://img.shields.io/github/repo-size/Sarrus1/advanced-anticamp "Size")
+
 # Advanced-Anticamp
 An advanced anti-camp plugin for CS:GO
 
