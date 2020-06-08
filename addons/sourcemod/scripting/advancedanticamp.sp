@@ -177,10 +177,12 @@ public Action Event_OnRoundStart(Handle event, const char[] name, bool dontBroad
 	}
 	if (IsFreezeTime())
 	{
+		delete(g_AntiCampDisable);
 		g_AntiCampDisable = CreateTimer(GetConVarFloat(g_disabletime) + GetConVarFloat(FindConVar("mp_freezetime")), AntiCamp_Disable);
 	}
 	else
 	{
+		delete(g_AntiCampDisable);
 		g_AntiCampDisable = CreateTimer(GetConVarFloat(g_disabletime), AntiCamp_Disable);
 	}
 	g_anticampdisabled = false;
@@ -317,6 +319,7 @@ public void OnMapStart() {
 
 public void OnMapEnd() {
 	SaveZones(0);
+	delete(g_AntiCampDisable);
 	for(int iClient = 1; iClient <= MaxClients; iClient++)
     {
       if(IsClientInGame(iClient))
