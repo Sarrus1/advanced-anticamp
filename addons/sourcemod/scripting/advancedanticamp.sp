@@ -81,7 +81,6 @@ public Plugin myinfo =
 public void OnPluginStart() {
 	LoadTranslations("advancedanticamp.phrases");
 
-	CreateConVar("advanced_anticamp_version", PLUGIN_VERSION, "Plugin Version", FCVAR_REPLICATED);
 	cvar_filter = CreateConVar("sm_advancedanticamp_filter", "1", "1 = Only allow valid alive clients to be detected in the native zones. 0 = Detect entities and all (you need to add more checkers in the third party plugins).");
 	cvar_mode = CreateConVar("sm_advancedanticamp_mode", "1", "0 = Use checks every X seconds for check if a player join or leave a zone, 1 = hook zone entities with OnStartTouch and OnEndTouch (less CPU consume)");
 	cvar_checker = CreateConVar("sm_advancedanticamp_checker", "5.0", "checks and beambox refreshs per second, low value = more precise but more CPU consume, More hight = less precise but less CPU consume");
