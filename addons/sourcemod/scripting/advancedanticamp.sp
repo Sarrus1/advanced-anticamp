@@ -4,7 +4,7 @@
 #include <colorvariables>
 
 
-#define PLUGIN_VERSION "1.2.5"
+#define PLUGIN_VERSION "1.2.9"
 #pragma newdecls required
 
 #define MAX_ZONES 256
@@ -314,6 +314,15 @@ public void OnMapStart() {
 
 	ReadZones();
 	RefreshZones();
+
+	delete(g_AntiCampDisable);
+	for(int iClient = 1; iClient <= MaxClients; iClient++)
+    {
+      if(IsClientInGame(iClient))
+      {
+					ResetTimer(iClient);
+      }
+    }
 }
 
 public void OnMapEnd() {
