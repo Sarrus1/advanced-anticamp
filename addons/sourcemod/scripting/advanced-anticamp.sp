@@ -90,7 +90,7 @@ public void OnPluginStart() {
 	g_PunishDelay = CreateConVar("sm_advancedanticamp_punishdelay", "2", "How much time before slapping.", 0, true, 0.0);
 	g_PunishFreq = CreateConVar("sm_advancedanticamp_punishfreq", "2", "How much time between slaps.", 0, true, 0.0);
 	g_CooldownDelay = CreateConVar("sm_advancedanticamp_cooldown_delay", "5.0", "How much time a client has to be out of a camping zone before he is no longer instantly slapped when entering one.", 0, true, 0.0);
-	g_disabletime = CreateConVar("sm_advancedanticamp_disabletime", "40", "How much time after the round start until the timer automatically disables.", 0, true, 0.0);
+	g_disabletime = CreateConVar("sm_advancedanticamp_disabletime", "40", "How much time after the round start until the timer automatically disables. Set to 0 to disable.", 0, true, 0.0);
 	g_szSoundFilePath = CreateConVar("sm_advancedanticamp_sound_path", "misc/anticamp/camper.mp3", "The file path of the camping sound. Leave blank to disable.");
 	g_Zones = CreateArray(256);
 	RegAdminCmd("sm_campzones", Command_CampZones, ADMFLAG_CUSTOM6);
@@ -174,17 +174,20 @@ public Action Event_OnRoundStart(Handle event, const char[] name, bool dontBroad
 	{
 		RefreshZones();
 	}
-	if (IsFreezeTime())
+	if (GetConVarFloat(g_disabletime) != 0)
 	{
-		delete(g_AntiCampDisable);
-		g_AntiCampDisable = CreateTimer(GetConVarFloat(g_disabletime) + GetConVarFloat(FindConVar("mp_freezetime")), AntiCamp_Disable);
+		if (IsFreezeTime())
+		{
+			delete(g_AntiCampDisable);
+			g_AntiCampDisable = CreateTimer(GetConVarFloat(g_disabletime) + GetConVarFloat(FindConVar("mp_freezetime")), AntiCamp_Disable);
+		}
+		else
+		{
+			delete(g_AntiCampDisable);
+			g_AntiCampDisable = CreateTimer(GetConVarFloat(g_disabletime), AntiCamp_Disable);
+		}
+		g_anticampdisabled = false;
 	}
-	else
-	{
-		delete(g_AntiCampDisable);
-		g_AntiCampDisable = CreateTimer(GetConVarFloat(g_disabletime), AntiCamp_Disable);
-	}
-	g_anticampdisabled = false;
 }
 
 public int CreateZoneEntity(float fMins[3], float fMaxs[3], char sZoneName[64]) {
