@@ -23,6 +23,7 @@ int g_Editing[MAXPLAYERS + 1] =  { 0, ... };
 float g_Positions[MAXPLAYERS + 1][2][3];
 int g_ClientSelectedZone[MAXPLAYERS + 1] =  { -1, ... };
 bool g_bFixName[MAXPLAYERS + 1];
+bool g_bIsInside[MAXPLAYERS + 1] = {false};
 
 int g_BeamSprite;
 int g_HaloSprite;
@@ -407,7 +408,7 @@ public void ReadZones() {
 	FileToKeyValues(kv, Path);
 	if (!KvGotoFirstSubKey(kv))
 	{
-		PrintToServer("[ERROR] Config file is corrupted: %s", Path);
+		LogMessage("[ERROR] Config file is corrupted: %s", Path);
 		return;
 	}
 	float pos1[3];
@@ -1453,6 +1454,7 @@ public void ResetTimer(int client)
 	delete(g_hPunishTimers[client]);
 	delete(g_hCooldownTimers[client]);
 	delete(g_hFreqTimers[client]);
+	g_bIsInside[client] = false;
 }
 
 //Reset timer when client arrives
@@ -1495,11 +1497,20 @@ public Action OnRoundEnd(Event event, const char[] name, bool dontBroadcast)
 //Start timer when client enters a zone
 public void Zone_OnClientEntry(int client, char[] zone)
 {
-	if(client < 2 || client > MaxClients || !IsClientInGame(client) ||!IsPlayerAlive(client) || IsWarmup() || g_anticampdisabled)
+	char nick[128];
+	GetClientName(client, nick, sizeof(nick));
+	if (g_bIsInside[client])
+	{
+		LogMessage("%s was already in the zone. Skipped.", nick);
+	}
+	if(client < 2 || client > MaxClients || !IsClientInGame(client) ||!IsPlayerAlive(client) || IsWarmup() || g_anticampdisabled || g_bIsInside[client])
 		return;
 
 	if((StrContains(zone, "AntiCampCT", false) == 0 && GetClientTeam(client) == 3) || (StrContains(zone, "AntiCampT", false) == 0 && GetClientTeam(client) == 2) || (StrContains(zone, "AntiCampBoth", false) == 0))
 	{
+		g_bIsInside[client] = true;
+		//char nick[128];
+		GetClientName(client, nick, sizeof(nick));
 		if (g_hCooldownTimers[client] == null)
 		{
 			delete(g_hClientTimers[client]);
@@ -1537,6 +1548,9 @@ public void Zone_OnClientLeave(int client, char[] zone)
 
 	if((StrContains(zone, "AntiCampCT", false) == 0 && GetClientTeam(client) == 3) || (StrContains(zone, "AntiCampT", false) == 0 && GetClientTeam(client) == 2) || (StrContains(zone, "AntiCampBoth", false) == 0))
 	{
+		g_bIsInside[client] = false;
+		char nick[128];
+		GetClientName(client, nick, sizeof(nick));
 		ResetTimer(client);
 		if ((GetConVarInt(g_CooldownDelay) != 0) && ((g_hPunishTimers[client] != null) || (g_hFreqTimers[client] != null)))
 		{
