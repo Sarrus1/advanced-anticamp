@@ -8,7 +8,7 @@ Admins can define areas, where, if a player spends more than x minutes in it, he
 Admins can decide how much slap damage will be inflicted, how long the player can stay in the areas, and more.
 
 ## Installation ##
-This plugin requires Sourcmod and Metamod.
+This plugin requires Sourcemod and Metamod.
 Grab the latest release from the release page and unzip it in your csgo folder.
 Restart the server or type `sm plugins load advancedanticamp` in the console to load the plugin.
 The config file will be automatically generated in cfg/sourcemod/
