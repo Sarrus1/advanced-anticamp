@@ -1,3 +1,10 @@
+# DEPRECATED, DON'T USE THIS PLUGIN, YOU WILL ENCOUNTER BUGS.
+# USE [THIS PLUGIN](https://github.com/Sarrus1/fuckZonesAntiCamp) INSTEAD
+
+
+ ---
+ ---
+
 # Advanced-Anticamp
 An advanced anti-camp plugin for CS:GO
 
